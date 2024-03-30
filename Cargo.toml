@@ -2,6 +2,22 @@
 name = "rsrs"
 version = "0.1.0"
 edition = "2021"
+authors = [ 
+  "Rob Patro <rob@cs.umd.edu>"
+]
+description = "command line tool to compute seqcol objects and digests"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/COMBINE-lab/rsrs"
+homepage = "https://github.com/COMBINE-lab/rsrs"
+documentation = "https://docs.rs/rsrs"
+include = ["src/*.rs", "/Cargo.toml", "/README.md", "/LICENSE"]
+keywords = [
+  "genomics",
+  "provenance",
+  "seqcol",
+]
+categories = [ "science", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,3 +28,26 @@ noodles = { version = "0.67.0", features = ["sam", "bam", "cram"] }
 noodles-util = { version = "0.39.0", features = ["alignment"] }
 seqcol_rs = "0.1.0"
 serde_json = { version = "1.0.115", features = ["indexmap", "preserve_order"] }
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.12.0"
+# CI backends to support
+ci = ["github"]
+# The installers to generate for each app
+installers = ["shell"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+# Publish jobs to run in CI
+pr-run-mode = "plan"
+# Whether to install an updater program
+install-updater = false
+
+[workspace.metadata.dist.github-custom-runners]
+aarch64-apple-darwin = "macos-14"
