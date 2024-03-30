@@ -8,4 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["derive", "wrap_help", "cargo"] }
+noodles = { version = "0.67.0", features = ["sam", "bam", "cram"] }
+noodles-util = { version = "0.39.0", features = ["alignment"] }
 seqcol_rs = "0.1.0"
+serde_json = { version = "1.0.115", features = ["indexmap", "preserve_order"] }
