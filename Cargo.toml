@@ -1,10 +1,8 @@
 [package]
 name = "rsrs"
 version = "0.1.0"
-edition = "2021"
-authors = [ 
-  "Rob Patro <rob@cs.umd.edu>"
-]
+edition = "2024"
+authors = ["Rob Patro <rob@cs.umd.edu>"]
 description = "command line tool to compute seqcol objects and digests"
 license-file = "LICENSE"
 readme = "README.md"
@@ -12,21 +10,16 @@ repository = "https://github.com/COMBINE-lab/rsrs"
 homepage = "https://github.com/COMBINE-lab/rsrs"
 documentation = "https://docs.rs/rsrs"
 include = ["src/*.rs", "/Cargo.toml", "/README.md", "/LICENSE"]
-keywords = [
-  "genomics",
-  "provenance",
-  "seqcol",
-]
-categories = [ "science", "command-line-utilities"]
+keywords = ["genomics", "provenance", "seqcol"]
+categories = ["science", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["derive", "wrap_help", "cargo"] }
-noodles = { version = "0.67.0", features = ["sam", "bam", "cram"] }
-noodles-util = { version = "0.39.0", features = ["alignment"] }
-seqcol_rs = { git = "https://github.com/COMBINE-lab/seqcol_rs", branch = "dev", version = "0.1.1" }
+noodles = { version = "0.73.0", features = ["sam", "bam"] }
+seqcol_rs = { git = "https://github.com/COMBINE-lab/seqcol_rs", branch = "dev", version = "0.3.0" }
 serde_json = { version = "1.0.115", features = ["indexmap", "preserve_order"] }
 
 # The profile that 'cargo dist' will build with
@@ -43,7 +36,11 @@ ci = ["github"]
 # The installers to generate for each app
 installers = ["shell"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-unknown-linux-gnu",
+]
 # Publish jobs to run in CI
 pr-run-mode = "plan"
 # Whether to install an updater program

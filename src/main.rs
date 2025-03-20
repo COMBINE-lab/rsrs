@@ -51,22 +51,39 @@ struct Args {
     output_type: OutputConfig,
 }
 
+fn write_seqcol_output(output_config: OutputConfig, sc: SeqCol) -> anyhow::Result<String> {
+    match output_config {
+        OutputConfig::Digest => {
+            let o = sc.digest(seqcol_rs::DigestConfig {
+                level: seqcol_rs::DigestLevel::Level0,
+                with_seqname_pairs: false,
+            })?;
+            Ok(serde_json::to_string_pretty(&o.to_json())?)
+        }
+        OutputConfig::SeqColObj => {
+            let o = sc.digest(seqcol_rs::DigestConfig {
+                level: seqcol_rs::DigestLevel::Level1,
+                with_seqname_pairs: false,
+            })?;
+
+            Ok(serde_json::to_string_pretty(&o.to_json())?)
+        }
+        OutputConfig::SeqColObjSNLP => {
+            let o = sc.digest(seqcol_rs::DigestConfig {
+                level: seqcol_rs::DigestLevel::Level1,
+                with_seqname_pairs: true,
+            })?;
+            Ok(serde_json::to_string_pretty(&o.to_json())?)
+        }
+    }
+}
+
 fn process_fasta<P: AsRef<Path>>(
     fasta_path: P,
     output_config: OutputConfig,
 ) -> anyhow::Result<String> {
     let sc = SeqCol::try_from_fasta_file(fasta_path.as_ref())?;
-    match output_config {
-        OutputConfig::Digest => Ok(sc.digest(seqcol_rs::DigestConfig::default())?),
-        OutputConfig::SeqColObj => {
-            let o = sc.seqcol_obj(seqcol_rs::DigestConfig::default())?;
-            Ok(serde_json::to_string_pretty(&o)?)
-        }
-        OutputConfig::SeqColObjSNLP => {
-            let o = sc.seqcol_obj(seqcol_rs::DigestConfig::WithSeqnameLenPairs)?;
-            Ok(serde_json::to_string_pretty(&o)?)
-        }
-    }
+    write_seqcol_output(output_config, sc)
 }
 
 fn process_seqcol<P: AsRef<Path>>(
@@ -77,47 +94,34 @@ fn process_seqcol<P: AsRef<Path>>(
     let r = std::io::BufReader::new(sf);
     let val = serde_json::from_reader(r)?;
     let sc = SeqCol::try_from_seqcol(&val)?;
-    match output_config {
-        OutputConfig::Digest => Ok(sc.digest(seqcol_rs::DigestConfig::default())?),
-        OutputConfig::SeqColObj => {
-            let o = sc.seqcol_obj(seqcol_rs::DigestConfig::default())?;
-            Ok(serde_json::to_string_pretty(&o)?)
-        }
-        OutputConfig::SeqColObjSNLP => {
-            let o = sc.seqcol_obj(seqcol_rs::DigestConfig::WithSeqnameLenPairs)?;
-            Ok(serde_json::to_string_pretty(&o)?)
-        }
-    }
+    write_seqcol_output(output_config, sc)
 }
 
 fn process_sam<P: AsRef<Path>>(sam_path: P, output_config: OutputConfig) -> anyhow::Result<String> {
-    let mut reader = noodles_util::alignment::io::reader::Builder::default()
-        .build_from_path(sam_path.as_ref())?;
-    let header = reader.read_header()?;
+    let mut reader =
+        noodles::bam::io::reader::Builder::default().build_from_path(sam_path.as_ref())?;
+    let header = match reader.read_header() {
+        Ok(hdr) => hdr,
+        Err(_) => {
+            let mut reader =
+                noodles::sam::io::reader::Builder::default().build_from_path(sam_path.as_ref())?;
+            reader.read_header()?
+        }
+    };
     let sc = SeqCol::from_sam_header(
         header
             .reference_sequences()
             .iter()
             .map(|(k, v)| (k.as_slice(), v.length().into())),
     );
-    match output_config {
-        OutputConfig::Digest => Ok(sc.digest(seqcol_rs::DigestConfig::default())?),
-        OutputConfig::SeqColObj => {
-            let o = sc.seqcol_obj(seqcol_rs::DigestConfig::default())?;
-            Ok(serde_json::to_string_pretty(&o)?)
-        }
-        OutputConfig::SeqColObjSNLP => {
-            let o = sc.seqcol_obj(seqcol_rs::DigestConfig::WithSeqnameLenPairs)?;
-            Ok(serde_json::to_string_pretty(&o)?)
-        }
-    }
+    write_seqcol_output(output_config, sc)
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let mut out_stream: Box<dyn Write> = match &args.out_path {
-        Some(ref op) => std::fs::File::create(op).map(|f| Box::new(f) as Box<dyn Write>)?,
+        Some(op) => std::fs::File::create(op).map(|f| Box::new(f) as Box<dyn Write>)?,
         None => Box::new(std::io::stdout()),
     };
 
