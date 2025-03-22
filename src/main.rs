@@ -2,6 +2,7 @@ use clap::{ArgGroup, Parser};
 use seqcol_rs::SeqCol;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use tracing::info;
 use tracing_subscriber::{EnvFilter, filter::LevelFilter, fmt, prelude::*};
 
 #[derive(Debug, Clone)]
@@ -106,6 +107,7 @@ fn process_sam<P: AsRef<Path>>(sam_path: P, output_config: OutputConfig) -> anyh
     let header = match reader.read_header() {
         Ok(hdr) => hdr,
         Err(_) => {
+            info!("could not read BAM header, attempting to parse file as SAM");
             let mut reader =
                 noodles::sam::io::reader::Builder::default().build_from_path(sam_path.as_ref())?;
             reader.read_header()?
