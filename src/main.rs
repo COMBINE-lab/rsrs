@@ -2,20 +2,31 @@ use clap::{ArgGroup, Parser};
 use seqcol_rs::SeqCol;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use tracing_subscriber::{EnvFilter, filter::LevelFilter, fmt, prelude::*};
 
 #[derive(Debug, Clone)]
-pub enum OutputConfig {
-    Digest,
-    SeqColObj,
-    SeqColObjSNLP,
+pub struct OutputConfig {
+    lvl: seqcol_rs::DigestLevel,
+    additional_attr: Vec<seqcol_rs::KnownAttr>,
 }
 
-fn output_config_parser(s: &str) -> Result<OutputConfig, String> {
+fn output_attr_parser(s: &str) -> Result<seqcol_rs::KnownAttr, String> {
     match s {
-        "digest" => Ok(OutputConfig::Digest),
-        "seqcol-obj" => Ok(OutputConfig::SeqColObj),
-        "seqcol-obj-snlp" => Ok(OutputConfig::SeqColObjSNLP),
-        t => Err(format!("Do not recognize output config {t}")),
+        "name_length_pairs" => Ok(seqcol_rs::KnownAttr::NameLengthPairs),
+        "sorted_name_length_pairs" => Ok(seqcol_rs::KnownAttr::SortedNameLengthPairs),
+        "sorted_sequences" => Ok(seqcol_rs::KnownAttr::SortedSequences),
+        t => Err(format!("Do not recognize additional attribute {t}")),
+    }
+}
+
+fn output_level_parser(s: &str) -> Result<seqcol_rs::DigestLevel, String> {
+    match s {
+        "0" => Ok(seqcol_rs::DigestLevel::Level0),
+        "1" => Ok(seqcol_rs::DigestLevel::Level1),
+        "2" => Ok(seqcol_rs::DigestLevel::Level2),
+        t => Err(format!(
+            "output level {t} not valid; must be in {{0, 1, 2}}."
+        )),
     }
 }
 
@@ -47,34 +58,25 @@ struct Args {
     out_path: Option<PathBuf>,
 
     /// Type of output to produce, one of "digest", "seqcol-obj" or "seqcol-obj-snlp".
-    #[arg(short='t', long, default_value = "digest", value_parser = output_config_parser)]
-    output_type: OutputConfig,
+    #[arg(short='a', long, value_delimiter=',', num_args=0.., value_parser = output_attr_parser)]
+    additional_attr: Vec<seqcol_rs::KnownAttr>,
+
+    /// Type of output to produce, one of "digest", "seqcol-obj" or "seqcol-obj-snlp".
+    #[arg(short='l', long, default_value = "1", value_parser = output_level_parser)]
+    level: seqcol_rs::DigestLevel,
 }
 
-fn write_seqcol_output(output_config: OutputConfig, sc: SeqCol) -> anyhow::Result<String> {
-    match output_config {
-        OutputConfig::Digest => {
-            let o = sc.digest(seqcol_rs::DigestConfig {
-                level: seqcol_rs::DigestLevel::Level0,
-                with_seqname_pairs: false,
-            })?;
-            Ok(serde_json::to_string_pretty(&o.to_json())?)
-        }
-        OutputConfig::SeqColObj => {
-            let o = sc.digest(seqcol_rs::DigestConfig {
-                level: seqcol_rs::DigestLevel::Level1,
-                with_seqname_pairs: false,
-            })?;
-
-            Ok(serde_json::to_string_pretty(&o.to_json())?)
-        }
-        OutputConfig::SeqColObjSNLP => {
-            let o = sc.digest(seqcol_rs::DigestConfig {
-                level: seqcol_rs::DigestLevel::Level1,
-                with_seqname_pairs: true,
-            })?;
-            Ok(serde_json::to_string_pretty(&o.to_json())?)
-        }
+fn write_seqcol_output(output_config: OutputConfig, mut sc: SeqCol) -> anyhow::Result<String> {
+    let OutputConfig {
+        lvl: level,
+        additional_attr: attr,
+    } = output_config;
+    {
+        let o = sc.digest(seqcol_rs::DigestConfig {
+            level,
+            additional_attr: attr,
+        })?;
+        Ok(serde_json::to_string_pretty(&o.to_json())?)
     }
 }
 
@@ -98,6 +100,7 @@ fn process_seqcol<P: AsRef<Path>>(
 }
 
 fn process_sam<P: AsRef<Path>>(sam_path: P, output_config: OutputConfig) -> anyhow::Result<String> {
+    #[allow(clippy::default_constructed_unit_structs)]
     let mut reader =
         noodles::bam::io::reader::Builder::default().build_from_path(sam_path.as_ref())?;
     let header = match reader.read_header() {
@@ -118,6 +121,21 @@ fn process_sam<P: AsRef<Path>>(sam_path: P, output_config: OutputConfig) -> anyh
 }
 
 fn main() -> anyhow::Result<()> {
+    // Check the `RUST_LOG` variable for the logger level and
+    // respect the value found there. If this environment
+    // variable is not set then set the logging level to
+    // INFO.
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy()
+                // we don't want to hear anything below a warning from ureq
+                .add_directive("ureq=warn".parse()?),
+        )
+        .init();
+
     let args = Args::parse();
 
     let mut out_stream: Box<dyn Write> = match &args.out_path {
@@ -131,8 +149,13 @@ fn main() -> anyhow::Result<()> {
             sam: None,
             seqcol: None,
             out_path: _,
-            output_type,
+            additional_attr: attr,
+            level: lvl,
         } => {
+            let output_type = OutputConfig {
+                lvl,
+                additional_attr: attr,
+            };
             let d = process_fasta(fasta, output_type)?;
             writeln!(out_stream, "{d}")?;
         }
@@ -141,8 +164,13 @@ fn main() -> anyhow::Result<()> {
             sam: Some(sam),
             seqcol: None,
             out_path: _,
-            output_type,
+            additional_attr: attr,
+            level: lvl,
         } => {
+            let output_type = OutputConfig {
+                lvl,
+                additional_attr: attr,
+            };
             let d = process_sam(sam, output_type)?;
             writeln!(out_stream, "{d}")?;
         }
@@ -151,8 +179,13 @@ fn main() -> anyhow::Result<()> {
             sam: None,
             seqcol: Some(seqcol),
             out_path: _,
-            output_type,
+            additional_attr: attr,
+            level: lvl,
         } => {
+            let output_type = OutputConfig {
+                lvl,
+                additional_attr: attr,
+            };
             let d = process_seqcol(seqcol, output_type)?;
             writeln!(out_stream, "{d}")?;
         }

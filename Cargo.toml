@@ -19,8 +19,10 @@ categories = ["science", "command-line-utilities"]
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["derive", "wrap_help", "cargo"] }
 noodles = { version = "0.73.0", features = ["sam", "bam"] }
-seqcol_rs = { git = "https://github.com/COMBINE-lab/seqcol_rs", branch = "dev", version = "0.3.0" }
+seqcol_rs = { path = "../seqcol-rs", version = "0.4.0" }                        #git = "https://github.com/COMBINE-lab/seqcol_rs", branch = "dev", version = "0.4.0" }
 serde_json = { version = "1.0.115", features = ["indexmap", "preserve_order"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 # The profile that 'cargo dist' will build with
 [profile.dist]
