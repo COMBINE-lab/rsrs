@@ -14,7 +14,6 @@ keywords = ["genomics", "provenance", "seqcol"]
 categories = ["science", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["derive", "wrap_help", "cargo"] }
