@@ -58,11 +58,13 @@ struct Args {
     #[arg(short, long)]
     out_path: Option<PathBuf>,
 
-    /// Type of output to produce, one of "digest", "seqcol-obj" or "seqcol-obj-snlp".
+    /// A ',' separated list of additional attributes to include in the object; valid options are
+    /// name_length_pairs, sorted_name_length_pairs, and sorted_sequences.
     #[arg(short='a', long, value_delimiter=',', num_args=0.., value_parser = output_attr_parser)]
     additional_attr: Vec<seqcol_rs::KnownAttr>,
 
-    /// Type of output to produce, one of "digest", "seqcol-obj" or "seqcol-obj-snlp".
+    /// Level of output digest to produce, should be 0, 1 or 2 (0 can only be produced when actual
+    /// sequences are available, as from a FASTA input).
     #[arg(short='l', long, default_value = "1", value_parser = output_level_parser)]
     level: seqcol_rs::DigestLevel,
 }
@@ -113,6 +115,12 @@ fn process_sam<P: AsRef<Path>>(sam_path: P, output_config: OutputConfig) -> anyh
             reader.read_header()?
         }
     };
+    if header.is_empty() {
+        anyhow::bail!(
+            "The header appears empty or could not be parsed, and so no digest will be produced; ensure {} is a valid SAM/BAM file.",
+            sam_path.as_ref().display()
+        );
+    }
     let sc = SeqCol::from_sam_header(
         header
             .reference_sequences()
