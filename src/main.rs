@@ -49,7 +49,8 @@ struct Args {
     #[arg(long)]
     sam: Option<PathBuf>,
 
-    /// Input SAM/BAM file
+    /// Input an existing seqcol digest as a JSON file.
+    /// This is useful e.g. for converting a level 2 digest to a level 0 or level 1 digest.
     #[arg(long)]
     seqcol: Option<PathBuf>,
 
